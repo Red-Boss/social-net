@@ -11,9 +11,6 @@
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     {{ __("Wellcome to social net!") }}
                 </div>
-                <button class="p-6 text-gray-90 dark:text-gray-100">
-                    +-+
-                </button>
             </div>
         </div>
     </div>

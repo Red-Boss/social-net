@@ -2,59 +2,118 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Http\RedirectResponse;
+use App\post;
 use Illuminate\Http\Request;
+use App\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
+use Image;
 
 class ProfileController extends Controller
 {
-    /**
-     * Display the user's profile form.
-     */
-    public function edit(Request $request): View
-    {
-        return view('profile.edit', [
-            'user' => $request->user(),
-        ]);
+    public function index($id){
+        $user = User::find($id);
+        $users = User::all();
+        return view('front_end.pages.profile',compact('user','users'));
     }
 
-    /**
-     * Update the user's profile information.
-     */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
-        $request->user()->fill($request->validated());
+    public function create(){
+        return view('front_end.pages.profile');
+    }
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+    public function edit(int $id){
+        $user = User::find($id);
+        $users = User::all();
+        return view('front_end.pages.edit_profile',compact('user','users'));
+    }
+
+    public function updatePicture(Request $request,int $id){
+        $request->validate(
+            [
+                'image'=>'required',
+            ]
+        );
+
+        $imageFilePath = '';
+        if($request->hasFile('image')){
+            $extension = $request->file('image')->getClientOriginalExtension();
+            $imageName = Auth::user()->name.rand().'.'.$extension;
+            $imageFilePath = 'Users'.'/'.$imageName;
+            $uplode = $request->file('image')->storeAs('public/Users',$imageName);
+            //dd('ff');
+        }
+        
+        // Image::make($request->file('image'))->save('storage/Comments/'.$imageName);
+        // $imageFilePath = 'storage/Comments/'.$imageName;
+        
+        $users_image = User::find($id);
+        
+        if( $imageFilePath){
+            $users_image->image = $imageFilePath;
+
+            $post_user_image = DB::table('posts')->get();
+            
+            foreach ($post_user_image as $user) {
+                if($user->user_id == $id){
+                    $affected = DB::table('posts')
+                    ->where('id', $user->id)
+                    ->update(['user_image' => $imageFilePath]);
+
+                    //dd($affected);
+                }
+            }
         }
 
-        $request->user()->save();
-
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        $users_image->update();
+        return redirect()->back();
     }
 
-    /**
-     * Delete the user's account.
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
+    public function update(Request $request,int $id){
 
-        $user = $request->user();
+        //dd($id);
+        //dd($request->all());
 
-        Auth::logout();
+        //check validation
+        $request->validate(
+            [
+                'name'=>'required',
+            ]
+        );
+        
+        try {
 
-        $user->delete();
+            $users = User::find($id);
+            $users->name = $request->name;
+            $users->gender = $request->gender;
+            $users->location =$request->location;
+            $users->about = $request->about;
+            $users->country = $request->country;
+            $users->update();
+            return redirect()->back();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        } catch(\Illuminate\Database\QueryException $e){
+            $errorCode = $e->errorInfo[1];
+            if($errorCode == '1062'){
+                dd('Duplicate Entry');
+            }
+        }
+    }
 
-        return Redirect::to('/');
+    public function friendsList(){
+        $users = User::all();
+        return view('front_end.pages.friends',compact('users'));
+    }
+
+    public function photosList(int $id){
+        $users = User::all();
+        $user = User::find($id);
+        $post = post::all();
+        return view('front_end.pages.photos',compact('users','user','post'));
+    }
+
+    public function userDelete(int $id){
+        $user = User::find($id);
+        //$user->delete();
+        return redirect()->back();
     }
 }
